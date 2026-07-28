@@ -1,0 +1,16 @@
+{
+  "name": "Schedario",
+  "short_name": "Schedario",
+  "description": "Il tuo archivio personale di musica, film, serie, fumetti e libri",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F1ECDD",
+  "theme_color": "#2F4A3E",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

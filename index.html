@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>Schedario</title>
+
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#2F4A3E" />
+<link rel="icon" href="icon-192.png" />
+<link rel="apple-touch-icon" href="icon-192.png" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Schedario" />
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: #D8CEB4; border-radius: 4px; }
+  .spin { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .focus-ring:focus-visible { outline: 2px solid #A2402A; outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js"></script>
+<script>
+const {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef
+} = React;
+
+/* ---------- Palette ---------- */
+const C = {
+  paper: "#F1ECDD",
+  card: "#FBF8F0",
+  ink: "#26221B",
+  inkSoft: "#5B5346",
+  line: "#D8CEB4",
+  green: "#2F4A3E",
+  greenSoft: "#3F6553",
+  rust: "#A2402A",
+  gold: "#AD7C24"
+};
+
+/* ---------- Minimal inline icons (no external icon package needed) ---------- */
+function Svg({
+  size = 16,
+  color = "currentColor",
+  children,
+  viewBox = "0 0 24 24"
+}) {
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: viewBox,
+    fill: "none",
+    stroke: color,
+    strokeWidth: "2",
+    strokeLinecap: "round",
+    strokeLinejoin: "round"
+  }, children);
+}
+const IconSearch = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "10",
+  cy: "10",
+  r: "6"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "20",
+  y1: "20",
+  x2: "14.5",
+  y2: "14.5"
+}));
+const IconPlus = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "4",
+  x2: "12",
+  y2: "20"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "4",
+  y1: "12",
+  x2: "20",
+  y2: "12"
+}));
+const IconX = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("line", {
+  x1: "5",
+  y1: "5",
+  x2: "19",
+  y2: "19"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "19",
+  y1: "5",
+  x2: "5",
+  y2: "19"
+}));
+const IconTrash = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M4 7h16"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M9 7V4h6v3"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M6 7l1 13h10l1-13"
+}));
+const IconPencil = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M14 3l4 4L7 18l-4 1 1-4z"
+}));
+const IconLoader = p => /*#__PURE__*/React.createElement(Svg, {
+  ...p,
+  children: /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("circle", {
+    cx: "12",
+    cy: "12",
+    r: "9",
+    opacity: "0.25"
+  }), /*#__PURE__*/React.createElement("path", {
+    d: "M21 12a9 9 0 00-9-9"
+  }))
+});
+const IconMusic = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("circle", {
+  cx: "6",
+  cy: "18",
+  r: "3"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "18",
+  cy: "16",
+  r: "3"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M9 18V5l12-2v13"
+}));
+const IconFilm = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("rect", {
+  x: "2",
+  y: "3",
+  width: "20",
+  height: "18",
+  rx: "2"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "7",
+  y1: "3",
+  x2: "7",
+  y2: "21"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "17",
+  y1: "3",
+  x2: "17",
+  y2: "21"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "2",
+  y1: "9",
+  x2: "7",
+  y2: "9"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "17",
+  y1: "9",
+  x2: "22",
+  y2: "9"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "2",
+  y1: "15",
+  x2: "7",
+  y2: "15"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "17",
+  y1: "15",
+  x2: "22",
+  y2: "15"
+}));
+const IconLayers = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M12 3l9 5-9 5-9-5 9-5z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M3 13l9 5 9-5"
+}));
+const IconBookOpen = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M2 5h8a2 2 0 012 2v14a3 3 0 00-3-2H2z"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M22 5h-8a2 2 0 00-2 2v14a3 3 0 013-2h7z"
+}));
+const IconStar = ({
+  size = 16,
+  filled = false,
+  color = "currentColor"
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: size,
+  height: size,
+  viewBox: "0 0 24 24",
+  fill: filled ? color : "none",
+  stroke: color,
+  strokeWidth: "1.5"
+}, /*#__PURE__*/React.createElement("polygon", {
+  points: "12,2 15,9 22,9.5 16.5,14.5 18.5,22 12,17.5 5.5,22 7.5,14.5 2,9.5 9,9"
+}));
+const IconSettings = ({
+  size = 18,
+  color = "currentColor"
+}) => {
+  const teeth = Array.from({
+    length: 8
+  });
+  return /*#__PURE__*/React.createElement("svg", {
+    width: size,
+    height: size,
+    viewBox: "0 0 24 24",
+    fill: "none"
+  }, /*#__PURE__*/React.createElement("circle", {
+    cx: "12",
+    cy: "12",
+    r: "4",
+    stroke: color,
+    strokeWidth: "2"
+  }), teeth.map((_, i) => /*#__PURE__*/React.createElement("rect", {
+    key: i,
+    x: "11",
+    y: "1",
+    width: "2",
+    height: "4",
+    fill: color,
+    transform: `rotate(${i * 45} 12 12)`
+  })));
+};
+const IconCloud = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M7 18a4 4 0 010-8 5 5 0 019.6-1.5A4 4 0 0118 18H7z"
+}));
+const IconDownload = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M12 3v12"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M7 10l5 5 5-5"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M4 20h16"
+}));
+const IconCheck = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M4 12l6 6L20 6"
+}));
+const IconAlert = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M12 3l10 18H2z"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "9",
+  x2: "12",
+  y2: "14"
+}), /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "17.3",
+  r: "0.4",
+  fill: "currentColor"
+}));
+
+/* ---------- Category config ---------- */
+const CATEGORIES = [{
+  key: "musica",
+  label: "Musica",
+  icon: IconMusic,
+  prefix: "M",
+  creatorLabel: "Artista",
+  subtypeLabel: "Formato",
+  subtypeOptions: ["Album", "EP", "Singolo", "Playlist", "Concerto"],
+  genreOptions: ["Rock", "Pop", "Cantautorato", "Jazz", "Classica", "Hip hop", "Elettronica", "Folk", "Metal", "Indie"],
+  progressLabel: "Traccia / punto di ascolto",
+  statuses: ["Da ascoltare", "In ascolto", "Ascoltato"],
+  accent: C.green
+}, {
+  key: "film",
+  label: "Film & Serie",
+  icon: IconFilm,
+  prefix: "F",
+  creatorLabel: "Regista",
+  subtypeLabel: "Formato",
+  subtypeOptions: ["Film", "Serie TV"],
+  genreOptions: ["Drammatico", "Commedia", "Azione", "Thriller", "Horror", "Fantascienza", "Fantasy", "Animazione", "Noir", "Storico"],
+  progressLabel: "Stagione / episodio",
+  statuses: ["Da vedere", "In corso", "Visto"],
+  accent: C.rust
+}, {
+  key: "fumetti",
+  label: "Fumetti",
+  icon: IconLayers,
+  prefix: "C",
+  creatorLabel: "Autore",
+  subtypeLabel: "Formato",
+  subtypeOptions: ["Serie", "Volume unico", "Graphic novel", "Manga"],
+  genreOptions: ["Supereroi", "Avventura", "Fantasy", "Fantascienza", "Slice of life", "Horror", "Commedia", "Storico", "Autobiografico"],
+  progressLabel: "Numero / volume",
+  statuses: ["Da leggere", "In corso", "Letto"],
+  accent: C.gold
+}, {
+  key: "libri",
+  label: "Libri",
+  icon: IconBookOpen,
+  prefix: "L",
+  creatorLabel: "Autore",
+  subtypeLabel: "Formato",
+  subtypeOptions: ["Romanzo", "Saggio", "Poesia"],
+  genreOptions: ["Narrativa", "Saggistica", "Filosofia", "Storia", "Fantasy", "Fantascienza", "Giallo", "Biografia", "Poesia"],
+  progressLabel: "Pagina",
+  statuses: ["Da leggere", "In corso", "Letto"],
+  accent: C.greenSoft
+}];
+const emptyForm = {
+  title: "",
+  creator: "",
+  subtype: "",
+  genre: "",
+  year: "",
+  status: "",
+  rating: 0,
+  progress: "",
+  date: "",
+  notes: "",
+  image: ""
+};
+const STORAGE_PREFIX = "schedario-entries-";
+const GITHUB_CONFIG_KEY = "schedario-github-config";
+function uid() {
+  return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+/* ---------- localStorage helpers ---------- */
+function loadCategory(key) {
+  try {
+    const raw = localStorage.getItem(STORAGE_PREFIX + key);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+function saveCategory(key, list) {
+  try {
+    localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(list));
+  } catch (e) {
+    console.error("Errore di salvataggio locale:", e);
+  }
+}
+function loadGithubConfig() {
+  try {
+    const raw = localStorage.getItem(GITHUB_CONFIG_KEY);
+    return raw ? JSON.parse(raw) : {
+      token: "",
+      repo: "",
+      path: "schedario-backup.json",
+      branch: "main",
+      autoBackup: false,
+      lastBackupAt: null
+    };
+  } catch (e) {
+    return {
+      token: "",
+      repo: "",
+      path: "schedario-backup.json",
+      branch: "main",
+      autoBackup: false,
+      lastBackupAt: null
+    };
+  }
+}
+function saveGithubConfig(cfg) {
+  try {
+    localStorage.setItem(GITHUB_CONFIG_KEY, JSON.stringify(cfg));
+  } catch (e) {}
+}
+
+/* ---------- Base64 (UTF-8 safe) ---------- */
+function utf8ToBase64(str) {
+  const bytes = new TextEncoder().encode(str);
+  let binary = "";
+  bytes.forEach(b => binary += String.fromCharCode(b));
+  return btoa(binary);
+}
+function base64ToUtf8(b64) {
+  const binary = atob(b64.replace(/\n/g, ""));
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder().decode(bytes);
+}
+
+/* ---------- GitHub API ---------- */
+function encodedPath(path) {
+  return path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
+}
+async function githubGetFile(cfg) {
+  const url = `https://api.github.com/repos/${cfg.repo}/contents/${encodedPath(cfg.path)}?ref=${encodeURIComponent(cfg.branch || "main")}`;
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${cfg.token}`,
+      Accept: "application/vnd.github+json"
+    }
+  });
+  if (res.status === 404) return null;
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || `Errore GitHub (${res.status})`);
+  }
+  return res.json();
+}
+async function githubPushBackup(cfg, dataObj) {
+  const existing = await githubGetFile(cfg);
+  const body = {
+    message: `Backup Schedario - ${new Date().toLocaleString("it-IT")}`,
+    content: utf8ToBase64(JSON.stringify(dataObj, null, 2)),
+    branch: cfg.branch || "main"
+  };
+  if (existing && existing.sha) body.sha = existing.sha;
+  const url = `https://api.github.com/repos/${cfg.repo}/contents/${encodedPath(cfg.path)}`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${cfg.token}`,
+      Accept: "application/vnd.github+json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(body)
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || `Errore GitHub (${res.status})`);
+  }
+  return res.json();
+}
+async function githubRestoreBackup(cfg) {
+  const file = await githubGetFile(cfg);
+  if (!file) throw new Error("Nessun backup trovato su GitHub a questo percorso.");
+  const decoded = base64ToUtf8(file.content);
+  return JSON.parse(decoded);
+}
+
+/* ---------- Small pieces ---------- */
+function Stamp({
+  text,
+  color
+}) {
+  return /*#__PURE__*/React.createElement("span", {
+    className: "inline-block",
+    style: {
+      padding: "2px 8px",
+      fontSize: "10px",
+      fontWeight: 700,
+      textTransform: "uppercase",
+      border: `2px solid ${color}`,
+      borderRadius: "3px",
+      color,
+      transform: "rotate(-3deg)",
+      letterSpacing: "0.12em",
+      fontFamily: "'JetBrains Mono', monospace",
+      background: "rgba(255,255,255,0.4)"
+    }
+  }, text);
+}
+function Stars({
+  value,
+  onChange,
+  size = 16
+}) {
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "2px"
+    }
+  }, [1, 2, 3, 4, 5].map(n => /*#__PURE__*/React.createElement("button", {
+    key: n,
+    type: "button",
+    onClick: () => onChange && onChange(n === value ? 0 : n),
+    style: {
+      lineHeight: 0,
+      cursor: onChange ? "pointer" : "default",
+      background: "none",
+      border: "none",
+      padding: 0
+    },
+    "aria-label": `${n} stelle`
+  }, /*#__PURE__*/React.createElement(IconStar, {
+    size: size,
+    filled: n <= value,
+    color: n <= value ? C.gold : C.line
+  }))));
+}
+function Field({
+  label,
+  children
+}) {
+  return /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "4px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "11px",
+      fontWeight: 700,
+      textTransform: "uppercase",
+      color: C.inkSoft,
+      letterSpacing: "0.06em"
+    }
+  }, label), children);
+}
+const inputStyle = {
+  border: `1px solid ${C.line}`,
+  background: C.paper,
+  borderRadius: "6px",
+  padding: "8px 12px",
+  fontSize: "14px",
+  width: "100%",
+  fontFamily: "inherit"
+};
+
+/* ---------- Entry form sheet ---------- */
+function EntryFormSheet({
+  cat,
+  initial,
+  isEditing,
+  onCancel,
+  onSubmit
+}) {
+  const [form, setForm] = useState(initial);
+  const [titleError, setTitleError] = useState(false);
+  const [imgError, setImgError] = useState(false);
+  const effectiveStatus = form.status || cat.statuses[0];
+  const isInProgress = effectiveStatus === cat.statuses[1];
+  const handleSubmit = e => {
+    e.preventDefault();
+    if (!form.title.trim()) {
+      setTitleError(true);
+      return;
+    }
+    setTitleError(false);
+    onSubmit(form);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 50,
+      display: "flex",
+      justifyContent: "center",
+      background: "rgba(38,34,27,0.5)"
+    }
+  }, /*#__PURE__*/React.createElement("form", {
+    onSubmit: handleSubmit,
+    style: {
+      background: C.card,
+      borderLeft: `1px solid ${C.line}`,
+      borderRight: `1px solid ${C.line}`,
+      height: "94vh",
+      marginTop: "6vh",
+      borderTopLeftRadius: "12px",
+      borderTopRightRadius: "12px",
+      width: "100%",
+      maxWidth: "560px",
+      overflowY: "auto"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "8px",
+      flexWrap: "wrap",
+      padding: "12px 20px",
+      borderBottom: `1px solid ${C.line}`,
+      background: C.card,
+      position: "sticky",
+      top: 0,
+      zIndex: 1
+    }
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 700,
+      fontSize: "1.15rem",
+      marginRight: "auto",
+      margin: 0
+    }
+  }, isEditing ? "Modifica scheda" : "Nuova scheda", " · ", cat.label), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: onCancel,
+    className: "focus-ring",
+    style: {
+      padding: "8px 12px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: 500,
+      color: C.inkSoft,
+      background: "none",
+      border: "none",
+      cursor: "pointer"
+    }
+  }, "Annulla"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: handleSubmit,
+    className: "focus-ring",
+    style: {
+      padding: "8px 16px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: 600,
+      color: "#fff",
+      background: cat.accent,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, isEditing ? "Salva" : "Aggiungi")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+      padding: "16px 24px"
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Titolo *"
+  }, /*#__PURE__*/React.createElement("input", {
+    autoFocus: true,
+    value: form.title,
+    onChange: e => {
+      setForm(f => ({
+        ...f,
+        title: e.target.value
+      }));
+      if (titleError) setTitleError(false);
+    },
+    className: "focus-ring",
+    style: {
+      ...inputStyle,
+      border: `1px solid ${titleError ? C.rust : C.line}`
+    }
+  }), titleError && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "12px",
+      color: C.rust
+    }
+  }, "Serve almeno un titolo per salvare la scheda.")), /*#__PURE__*/React.createElement(Field, {
+    label: "Immagine (link raw GitHub o altro link diretto)"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "url",
+    value: form.image,
+    onChange: e => {
+      setForm(f => ({
+        ...f,
+        image: e.target.value
+      }));
+      setImgError(false);
+    },
+    placeholder: "https://raw.githubusercontent.com/…",
+    className: "focus-ring",
+    style: inputStyle
+  }), form.image && !imgError && /*#__PURE__*/React.createElement("img", {
+    src: form.image,
+    alt: "Anteprima copertina",
+    onError: () => setImgError(true),
+    style: {
+      width: "88px",
+      height: "88px",
+      objectFit: "cover",
+      borderRadius: "6px",
+      border: `1px solid ${C.line}`,
+      marginTop: "6px"
+    }
+  }), form.image && imgError && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "12px",
+      color: C.inkSoft,
+      marginTop: "4px"
+    }
+  }, "Non riesco a caricare l'anteprima — controlla che sia il link \"raw\" e non la pagina normale.")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: cat.creatorLabel
+  }, /*#__PURE__*/React.createElement("input", {
+    value: form.creator,
+    onChange: e => setForm(f => ({
+      ...f,
+      creator: e.target.value
+    })),
+    className: "focus-ring",
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Anno"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: form.year,
+    onChange: e => setForm(f => ({
+      ...f,
+      year: e.target.value
+    })),
+    className: "focus-ring",
+    style: inputStyle
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: cat.subtypeLabel
+  }, /*#__PURE__*/React.createElement("select", {
+    value: form.subtype,
+    onChange: e => setForm(f => ({
+      ...f,
+      subtype: e.target.value
+    })),
+    className: "focus-ring",
+    style: inputStyle
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, "—"), cat.subtypeOptions.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o
+  }, o)))), /*#__PURE__*/React.createElement(Field, {
+    label: "Stato"
+  }, /*#__PURE__*/React.createElement("select", {
+    value: form.status,
+    onChange: e => setForm(f => ({
+      ...f,
+      status: e.target.value
+    })),
+    className: "focus-ring",
+    style: inputStyle
+  }, /*#__PURE__*/React.createElement("option", {
+    value: ""
+  }, cat.statuses[0]), cat.statuses.map(o => /*#__PURE__*/React.createElement("option", {
+    key: o
+  }, o))))), /*#__PURE__*/React.createElement(Field, {
+    label: "Genere"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: form.genre,
+    onChange: e => setForm(f => ({
+      ...f,
+      genre: e.target.value
+    })),
+    list: `genres-${cat.key}`,
+    placeholder: "Scrivi o scegli dai suggerimenti…",
+    className: "focus-ring",
+    style: inputStyle
+  }), /*#__PURE__*/React.createElement("datalist", {
+    id: `genres-${cat.key}`
+  }, cat.genreOptions.map(g => /*#__PURE__*/React.createElement("option", {
+    key: g,
+    value: g
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: isInProgress ? "1fr 1fr" : "1fr",
+      gap: "12px",
+      alignItems: "end"
+    }
+  }, isInProgress && /*#__PURE__*/React.createElement(Field, {
+    label: cat.progressLabel
+  }, /*#__PURE__*/React.createElement("input", {
+    value: form.progress,
+    onChange: e => setForm(f => ({
+      ...f,
+      progress: e.target.value
+    })),
+    className: "focus-ring",
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Data"
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    value: form.date,
+    onChange: e => setForm(f => ({
+      ...f,
+      date: e.target.value
+    })),
+    className: "focus-ring",
+    style: inputStyle
+  }))), /*#__PURE__*/React.createElement(Field, {
+    label: "Voto"
+  }, /*#__PURE__*/React.createElement(Stars, {
+    value: form.rating,
+    onChange: v => setForm(f => ({
+      ...f,
+      rating: v
+    })),
+    size: 20
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Note"
+  }, /*#__PURE__*/React.createElement("textarea", {
+    value: form.notes,
+    onChange: e => setForm(f => ({
+      ...f,
+      notes: e.target.value
+    })),
+    rows: 3,
+    className: "focus-ring",
+    style: {
+      ...inputStyle,
+      resize: "vertical"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "flex-end",
+      gap: "8px",
+      paddingTop: "12px",
+      paddingBottom: "24px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: onCancel,
+    className: "focus-ring",
+    style: {
+      padding: "8px 16px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: 500,
+      color: C.inkSoft,
+      background: "none",
+      border: "none",
+      cursor: "pointer"
+    }
+  }, "Annulla"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: handleSubmit,
+    className: "focus-ring",
+    style: {
+      padding: "8px 16px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: 600,
+      color: "#fff",
+      background: cat.accent,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, isEditing ? "Salva modifiche" : "Aggiungi alla scheda")))));
+}
+
+/* ---------- Settings / GitHub backup sheet ---------- */
+function SettingsSheet({
+  config,
+  onCancel,
+  onSave,
+  onBackup,
+  onRestore,
+  backupStatus
+}) {
+  const [local, setLocal] = useState(config);
+  const [showToken, setShowToken] = useState(false);
+  const save = () => onSave(local);
+  const doBackup = () => {
+    onSave(local);
+    onBackup(local);
+  };
+  const doRestore = () => {
+    onSave(local);
+    onRestore(local);
+  };
+  const statusColor = backupStatus.state === "error" ? C.rust : backupStatus.state === "success" ? C.green : C.inkSoft;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 50,
+      display: "flex",
+      justifyContent: "center",
+      background: "rgba(38,34,27,0.5)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderLeft: `1px solid ${C.line}`,
+      borderRight: `1px solid ${C.line}`,
+      height: "94vh",
+      marginTop: "6vh",
+      borderTopLeftRadius: "12px",
+      borderTopRightRadius: "12px",
+      width: "100%",
+      maxWidth: "560px",
+      overflowY: "auto"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "8px",
+      padding: "12px 20px",
+      borderBottom: `1px solid ${C.line}`,
+      background: C.card,
+      position: "sticky",
+      top: 0,
+      zIndex: 1
+    }
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 700,
+      fontSize: "1.15rem",
+      margin: 0
+    }
+  }, "Backup su GitHub"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: onCancel,
+    className: "focus-ring",
+    style: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "4px"
+    }
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 20,
+    color: C.ink
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "14px",
+      padding: "16px 24px"
+    }
+  }, /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "13px",
+      color: C.inkSoft,
+      lineHeight: 1.5,
+      margin: 0
+    }
+  }, "Collega un tuo repository GitHub per salvare una copia di sicurezza dei dati. Ti serve un", /*#__PURE__*/React.createElement("strong", null, " Personal Access Token"), " (impostazioni GitHub → Developer settings → Fine-grained tokens) con permesso di lettura/scrittura sui \"Contents\" del repository scelto. Il token resta salvato solo in questo browser: trattalo come una password e, se possibile, limitalo a un solo repository dedicato."), /*#__PURE__*/React.createElement(Field, {
+    label: "Personal Access Token"
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "6px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: showToken ? "text" : "password",
+    value: local.token,
+    onChange: e => setLocal(c => ({
+      ...c,
+      token: e.target.value
+    })),
+    placeholder: "ghp_… oppure github_pat_…",
+    className: "focus-ring",
+    style: inputStyle
+  }), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: () => setShowToken(s => !s),
+    className: "focus-ring",
+    style: {
+      padding: "0 12px",
+      borderRadius: "6px",
+      border: `1px solid ${C.line}`,
+      background: C.paper,
+      fontSize: "12px",
+      cursor: "pointer"
+    }
+  }, showToken ? "Nascondi" : "Mostra"))), /*#__PURE__*/React.createElement(Field, {
+    label: "Repository (formato owner/repo)"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: local.repo,
+    onChange: e => setLocal(c => ({
+      ...c,
+      repo: e.target.value
+    })),
+    placeholder: "kratosso24/schedario-backup",
+    className: "focus-ring",
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement(Field, {
+    label: "Percorso file"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: local.path,
+    onChange: e => setLocal(c => ({
+      ...c,
+      path: e.target.value
+    })),
+    placeholder: "schedario-backup.json",
+    className: "focus-ring",
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement(Field, {
+    label: "Branch"
+  }, /*#__PURE__*/React.createElement("input", {
+    value: local.branch,
+    onChange: e => setLocal(c => ({
+      ...c,
+      branch: e.target.value
+    })),
+    placeholder: "main",
+    className: "focus-ring",
+    style: inputStyle
+  }))), /*#__PURE__*/React.createElement("label", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      fontSize: "13px",
+      color: C.ink
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "checkbox",
+    checked: local.autoBackup,
+    onChange: e => setLocal(c => ({
+      ...c,
+      autoBackup: e.target.checked
+    }))
+  }), "Backup automatico dopo ogni modifica (qualche secondo dopo l'ultima modifica)"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: save,
+    className: "focus-ring",
+    style: {
+      padding: "8px 16px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: 600,
+      color: C.ink,
+      background: C.paper,
+      border: `1px solid ${C.line}`,
+      cursor: "pointer"
+    }
+  }, "Salva impostazioni"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: doBackup,
+    className: "focus-ring",
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      padding: "8px 16px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: 600,
+      color: "#fff",
+      background: C.green,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, /*#__PURE__*/React.createElement(IconCloud, {
+    size: 15,
+    color: "#fff"
+  }), " Esegui backup ora"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: doRestore,
+    className: "focus-ring",
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      padding: "8px 16px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: 600,
+      color: "#fff",
+      background: C.rust,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, /*#__PURE__*/React.createElement(IconDownload, {
+    size: 15,
+    color: "#fff"
+  }), " Ripristina da GitHub")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      fontSize: "13px",
+      color: statusColor
+    }
+  }, backupStatus.state === "working" && /*#__PURE__*/React.createElement(IconLoader, {
+    size: 14,
+    color: statusColor,
+    className: "spin"
+  }), backupStatus.state === "success" && /*#__PURE__*/React.createElement(IconCheck, {
+    size: 14,
+    color: statusColor
+  }), backupStatus.state === "error" && /*#__PURE__*/React.createElement(IconAlert, {
+    size: 14,
+    color: statusColor
+  }), /*#__PURE__*/React.createElement("span", null, backupStatus.message || (local.lastBackupAt ? `Ultimo backup: ${new Date(local.lastBackupAt).toLocaleString("it-IT")}` : "Nessun backup ancora eseguito."))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "12px",
+      color: C.inkSoft,
+      lineHeight: 1.5,
+      marginTop: "8px"
+    }
+  }, "\"Ripristina da GitHub\" sostituisce tutti i dati salvati in questo browser con quelli del file di backup. Usalo se cambi dispositivo o se devi recuperare i dati dopo aver svuotato la cache."))));
+}
+
+/* ---------- Main App ---------- */
+function App() {
+  const [entries, setEntries] = useState(() => {
+    const res = {};
+    CATEGORIES.forEach(c => {
+      res[c.key] = loadCategory(c.key);
+    });
+    return res;
+  });
+  const [activeTab, setActiveTab] = useState("musica");
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("Tutti");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [form, setForm] = useState(emptyForm);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [githubConfig, setGithubConfig] = useState(loadGithubConfig());
+  const [backupStatus, setBackupStatus] = useState({
+    state: "idle",
+    message: ""
+  });
+  const autoBackupTimer = useRef(null);
+  const cat = CATEGORIES.find(c => c.key === activeTab);
+  const Icon = cat.icon;
+  const runBackup = useCallback(async cfg => {
+    if (!cfg.token || !cfg.repo) {
+      setBackupStatus({
+        state: "error",
+        message: "Configura token e repository prima di eseguire il backup."
+      });
+      return;
+    }
+    setBackupStatus({
+      state: "working",
+      message: "Backup in corso…"
+    });
+    try {
+      const dataObj = {
+        exportedAt: new Date().toISOString(),
+        entries
+      };
+      await githubPushBackup(cfg, dataObj);
+      const now = new Date().toISOString();
+      const newCfg = {
+        ...cfg,
+        lastBackupAt: now
+      };
+      setGithubConfig(newCfg);
+      saveGithubConfig(newCfg);
+      setBackupStatus({
+        state: "success",
+        message: `Backup completato alle ${new Date(now).toLocaleTimeString("it-IT")}`
+      });
+    } catch (e) {
+      setBackupStatus({
+        state: "error",
+        message: e.message || "Errore durante il backup."
+      });
+    }
+  }, [entries]);
+  const runRestore = useCallback(async cfg => {
+    if (!cfg.token || !cfg.repo) {
+      setBackupStatus({
+        state: "error",
+        message: "Configura token e repository prima di ripristinare."
+      });
+      return;
+    }
+    if (!window.confirm("Questo sostituirà tutti i dati salvati in questo browser con quelli del backup su GitHub. Continuare?")) return;
+    setBackupStatus({
+      state: "working",
+      message: "Ripristino in corso…"
+    });
+    try {
+      const dataObj = await githubRestoreBackup(cfg);
+      const restored = dataObj.entries || dataObj;
+      const next = {};
+      CATEGORIES.forEach(c => {
+        next[c.key] = restored[c.key] || [];
+        saveCategory(c.key, next[c.key]);
+      });
+      setEntries(next);
+      setBackupStatus({
+        state: "success",
+        message: "Ripristino completato."
+      });
+    } catch (e) {
+      setBackupStatus({
+        state: "error",
+        message: e.message || "Errore durante il ripristino."
+      });
+    }
+  }, []);
+  const scheduleAutoBackup = useCallback(cfg => {
+    if (!cfg.autoBackup || !cfg.token || !cfg.repo) return;
+    clearTimeout(autoBackupTimer.current);
+    autoBackupTimer.current = setTimeout(() => runBackup(cfg), 4000);
+  }, [runBackup]);
+  const updateCategory = useCallback((categoryKey, updater) => {
+    setEntries(prev => {
+      const next = {
+        ...prev,
+        [categoryKey]: updater(prev[categoryKey])
+      };
+      saveCategory(categoryKey, next[categoryKey]);
+      scheduleAutoBackup(githubConfig);
+      return next;
+    });
+  }, [scheduleAutoBackup, githubConfig]);
+  const openNew = () => {
+    setForm(emptyForm);
+    setEditingId(null);
+    setFormOpen(true);
+  };
+  const openEdit = entry => {
+    setForm(entry);
+    setEditingId(entry.id);
+    setFormOpen(true);
+  };
+  const closeForm = () => {
+    setFormOpen(false);
+    setEditingId(null);
+    setForm(emptyForm);
+  };
+  const submitForm = submittedData => {
+    if (!submittedData.title.trim()) return;
+    const status = submittedData.status || cat.statuses[0];
+    if (editingId) {
+      updateCategory(activeTab, list => list.map(it => it.id === editingId ? {
+        ...submittedData,
+        status,
+        id: editingId
+      } : it));
+    } else {
+      const newEntry = {
+        ...submittedData,
+        status,
+        id: uid(),
+        createdAt: Date.now()
+      };
+      updateCategory(activeTab, list => [newEntry, ...list]);
+    }
+    closeForm();
+  };
+  const removeEntry = id => updateCategory(activeTab, list => list.filter(it => it.id !== id));
+  const list = entries[activeTab] || [];
+
+  // Group entries by status (già fatto / in corso / da fare), each with its own
+  // stable code (prefix + group number + sequence), based on the FULL category
+  // list so codes don't shift when searching or filtering.
+  const allGroups = useMemo(() => {
+    const semanticOrder = [{
+      status: cat.statuses[2],
+      suffix: 1
+    },
+    // già ascoltato/visto/letto
+    {
+      status: cat.statuses[1],
+      suffix: 2
+    },
+    // in corso
+    {
+      status: cat.statuses[0],
+      suffix: 3
+    } // da fare
+    ];
+    return semanticOrder.map(({
+      status,
+      suffix
+    }) => {
+      const items = list.filter(it => (it.status || cat.statuses[0]) === status);
+      const withKey = items.map(it => ({
+        it,
+        key: it.date ? new Date(it.date).getTime() || 0 : it.createdAt || 0
+      }));
+      const ascending = [...withKey].sort((a, b) => a.key - b.key);
+      const codeMap = new Map();
+      ascending.forEach((entry, idx) => {
+        codeMap.set(entry.it.id, `${cat.prefix}${suffix} - ${String(idx + 1).padStart(3, "0")}`);
+      });
+      const descending = [...ascending].reverse().map(e => e.it);
+      return {
+        status,
+        items: descending,
+        codeMap
+      };
+    });
+  }, [list, cat]);
+  const visibleGroups = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return allGroups.filter(g => statusFilter === "Tutti" || g.status === statusFilter).map(g => ({
+      ...g,
+      items: g.items.filter(it => {
+        if (!q) return true;
+        return it.title.toLowerCase().includes(q) || (it.creator || "").toLowerCase().includes(q) || (it.notes || "").toLowerCase().includes(q);
+      })
+    })).filter(g => g.items.length > 0);
+  }, [allGroups, statusFilter, search]);
+  const totalVisible = visibleGroups.reduce((sum, g) => sum + g.items.length, 0);
+  const totalAll = CATEGORIES.reduce((sum, c) => sum + (entries[c.key]?.length || 0), 0);
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      width: "100%",
+      background: C.paper,
+      color: C.ink
+    }
+  }, /*#__PURE__*/React.createElement("header", {
+    style: {
+      padding: "40px 20px 24px",
+      borderBottom: `1px solid ${C.line}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1000px",
+      margin: "0 auto"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "baseline",
+      justifyContent: "space-between",
+      flexWrap: "wrap",
+      gap: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("h1", {
+    style: {
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 700,
+      fontSize: "clamp(2rem, 5vw, 2.75rem)",
+      margin: 0
+    }
+  }, "Schedario"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "'JetBrains Mono', monospace",
+      fontSize: "12px",
+      color: C.inkSoft,
+      textTransform: "uppercase",
+      letterSpacing: "0.15em"
+    }
+  }, totalAll, " schede archiviate"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setSettingsOpen(true),
+    className: "focus-ring",
+    "aria-label": "Impostazioni backup",
+    style: {
+      background: "none",
+      border: `1px solid ${C.line}`,
+      borderRadius: "6px",
+      padding: "6px",
+      cursor: "pointer",
+      display: "flex"
+    }
+  }, /*#__PURE__*/React.createElement(IconSettings, {
+    size: 16,
+    color: C.inkSoft
+  })))), /*#__PURE__*/React.createElement("p", {
+    style: {
+      marginTop: "4px",
+      color: C.inkSoft,
+      fontFamily: "'Fraunces', serif",
+      fontStyle: "italic"
+    }
+  }, "il tuo archivio personale di musica, film, serie, fumetti e libri"))), /*#__PURE__*/React.createElement("nav", {
+    style: {
+      padding: "24px 20px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1000px",
+      margin: "0 auto",
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "8px"
+    }
+  }, CATEGORIES.map(c => {
+    const CIcon = c.icon;
+    const isActive = c.key === activeTab;
+    return /*#__PURE__*/React.createElement("button", {
+      key: c.key,
+      onClick: () => {
+        setActiveTab(c.key);
+        setStatusFilter("Tutti");
+        setSearch("");
+      },
+      className: "focus-ring",
+      style: {
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "8px",
+        padding: "10px 16px",
+        borderRadius: "6px",
+        fontSize: "14px",
+        fontWeight: 600,
+        cursor: "pointer",
+        width: "100%",
+        background: isActive ? C.card : "transparent",
+        color: isActive ? c.accent : C.inkSoft,
+        border: `1px solid ${C.line}`
+      }
+    }, /*#__PURE__*/React.createElement(CIcon, {
+      size: 16,
+      color: isActive ? c.accent : C.inkSoft
+    }), c.label, /*#__PURE__*/React.createElement("span", {
+      style: {
+        marginLeft: "4px",
+        padding: "0 6px",
+        borderRadius: "999px",
+        fontSize: "11px",
+        background: isActive ? c.accent : C.line,
+        color: isActive ? "#fff" : C.inkSoft,
+        fontFamily: "'JetBrains Mono', monospace"
+      }
+    }, entries[c.key]?.length || 0));
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px 20px",
+      borderTop: `1px solid ${C.line}`,
+      borderBottom: `1px solid ${C.line}`,
+      background: C.card
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1000px",
+      margin: "0 auto",
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "8px",
+      padding: "8px 12px",
+      borderRadius: "6px",
+      background: C.paper,
+      border: `1px solid ${C.line}`,
+      width: "100%"
+    }
+  }, /*#__PURE__*/React.createElement(IconSearch, {
+    size: 16,
+    color: C.inkSoft
+  }), /*#__PURE__*/React.createElement("input", {
+    value: search,
+    onChange: e => setSearch(e.target.value),
+    placeholder: `Cerca in ${cat.label.toLowerCase()}…`,
+    className: "focus-ring",
+    style: {
+      background: "transparent",
+      outline: "none",
+      flex: 1,
+      fontSize: "14px",
+      border: "none",
+      color: C.ink
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("select", {
+    value: statusFilter,
+    onChange: e => setStatusFilter(e.target.value),
+    className: "focus-ring",
+    style: {
+      width: "100%",
+      padding: "8px 12px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      background: C.paper,
+      border: `1px solid ${C.line}`,
+      color: C.ink
+    }
+  }, /*#__PURE__*/React.createElement("option", null, "Tutti"), cat.statuses.map(s => /*#__PURE__*/React.createElement("option", {
+    key: s
+  }, s))), /*#__PURE__*/React.createElement("button", {
+    onClick: openNew,
+    className: "focus-ring",
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "6px",
+      width: "100%",
+      padding: "8px 16px",
+      borderRadius: "6px",
+      fontSize: "14px",
+      fontWeight: 600,
+      color: "#fff",
+      background: cat.accent,
+      border: "none",
+      cursor: "pointer"
+    }
+  }, /*#__PURE__*/React.createElement(IconPlus, {
+    size: 16,
+    color: "#fff"
+  }), " Nuova scheda")))), /*#__PURE__*/React.createElement("main", {
+    style: {
+      padding: "32px 20px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxWidth: "1000px",
+      margin: "0 auto"
+    }
+  }, totalVisible === 0 ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      padding: "64px 0",
+      borderRadius: "8px",
+      border: `2px dashed ${C.line}`,
+      color: C.inkSoft
+    }
+  }, /*#__PURE__*/React.createElement(Icon, {
+    size: 28,
+    color: C.line
+  }), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontFamily: "'Fraunces', serif",
+      fontSize: "1.1rem",
+      marginTop: "12px"
+    }
+  }, list.length === 0 ? `Nessuna scheda in ${cat.label.toLowerCase()} ancora.` : "Nessuna scheda corrisponde alla ricerca."), /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "14px"
+    }
+  }, list.length === 0 ? 'Aggiungi la prima con "Nuova scheda".' : "Prova a cambiare filtro o ricerca.")) : visibleGroups.map((group, gIdx) => /*#__PURE__*/React.createElement("div", {
+    key: group.status,
+    style: {
+      marginTop: gIdx === 0 ? 0 : "32px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      marginBottom: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 600,
+      fontSize: "1.05rem",
+      color: cat.accent,
+      margin: 0,
+      whiteSpace: "nowrap"
+    }
+  }, group.status), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "11px",
+      fontFamily: "'JetBrains Mono', monospace",
+      color: C.inkSoft
+    }
+  }, group.items.length), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      height: "1px",
+      background: C.line
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gap: "16px",
+      gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))"
+    }
+  }, group.items.map(it => /*#__PURE__*/React.createElement("article", {
+    key: it.id,
+    style: {
+      position: "relative",
+      borderRadius: "6px",
+      padding: "16px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "8px",
+      background: C.card,
+      border: `1px solid ${C.line}`,
+      boxShadow: "0 1px 0 rgba(0,0,0,0.03)"
+    }
+  }, it.image && /*#__PURE__*/React.createElement("img", {
+    src: it.image,
+    alt: it.title,
+    loading: "lazy",
+    onError: e => {
+      e.currentTarget.style.display = "none";
+    },
+    style: {
+      width: "100%",
+      height: "140px",
+      objectFit: "cover",
+      borderRadius: "6px",
+      border: `1px solid ${C.line}`
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "flex-start",
+      justifyContent: "space-between",
+      gap: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "11px",
+      fontFamily: "'JetBrains Mono', monospace",
+      color: C.inkSoft
+    }
+  }, group.codeMap.get(it.id)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "4px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => openEdit(it),
+    className: "focus-ring",
+    "aria-label": "Modifica scheda",
+    style: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "4px"
+    }
+  }, /*#__PURE__*/React.createElement(IconPencil, {
+    size: 14,
+    color: C.inkSoft
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => removeEntry(it.id),
+    className: "focus-ring",
+    "aria-label": "Elimina scheda",
+    style: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "4px"
+    }
+  }, /*#__PURE__*/React.createElement(IconTrash, {
+    size: 14,
+    color: C.rust
+  })))), /*#__PURE__*/React.createElement("h3", {
+    style: {
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 600,
+      fontSize: "1.15rem",
+      lineHeight: 1.25,
+      margin: 0
+    }
+  }, it.title, it.year ? /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: C.inkSoft,
+      fontWeight: 400
+    }
+  }, " (", it.year, ")") : null), it.creator && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "14px",
+      color: C.inkSoft,
+      margin: 0
+    }
+  }, cat.creatorLabel, ": ", it.creator), (it.subtype || it.genre) && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "12px",
+      textTransform: "uppercase",
+      color: C.inkSoft,
+      letterSpacing: "0.08em",
+      margin: 0
+    }
+  }, [it.subtype, it.genre].filter(Boolean).join(" · ")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      marginTop: "4px"
+    }
+  }, /*#__PURE__*/React.createElement(Stamp, {
+    text: it.status,
+    color: cat.accent
+  }), /*#__PURE__*/React.createElement(Stars, {
+    value: it.rating || 0,
+    size: 14
+  })), it.progress && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "12px",
+      color: C.inkSoft,
+      margin: 0
+    }
+  }, cat.progressLabel, ": ", it.progress), it.date && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "12px",
+      fontFamily: "'JetBrains Mono', monospace",
+      color: C.inkSoft,
+      margin: 0
+    }
+  }, it.date), it.notes && /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "14px",
+      marginTop: "4px",
+      paddingTop: "8px",
+      borderTop: `1px solid ${C.line}`,
+      color: C.ink,
+      whiteSpace: "pre-wrap"
+    }
+  }, it.notes)))))))), formOpen && /*#__PURE__*/React.createElement(EntryFormSheet, {
+    key: editingId || "new",
+    cat: cat,
+    initial: form,
+    isEditing: !!editingId,
+    onCancel: closeForm,
+    onSubmit: submitForm
+  }), settingsOpen && /*#__PURE__*/React.createElement(SettingsSheet, {
+    config: githubConfig,
+    backupStatus: backupStatus,
+    onCancel: () => setSettingsOpen(false),
+    onSave: cfg => {
+      setGithubConfig(cfg);
+      saveGithubConfig(cfg);
+    },
+    onBackup: runBackup,
+    onRestore: runRestore
+  }));
+}
+ReactDOM.createRoot(document.getElementById("root")).render(/*#__PURE__*/React.createElement(App, null));
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  });
+}
+</script>
+</body>
+</html>
