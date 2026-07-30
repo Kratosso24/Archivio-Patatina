@@ -1,8 +1,24 @@
 {
-  "exportedAt": "2026-07-30T23:41:00.559Z",
+  "exportedAt": "2026-07-30T23:42:11.204Z",
   "entries": {
     "musica": [],
-    "film": [],
+    "film": [
+      {
+        "title": "Spiderman: Brand New Day",
+        "creator": "Destin Daniel Cretton",
+        "subtype": "Film",
+        "genre": "Azione",
+        "year": "2026",
+        "status": "Visto",
+        "rating": 3,
+        "progress": "",
+        "date": "2026-07-30",
+        "notes": "",
+        "image": "",
+        "id": "vkvoq2ewms85q0dp",
+        "createdAt": 1785454856557
+      }
+    ],
     "fumetti": [],
     "libri": []
   }
