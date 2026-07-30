@@ -49,7 +49,8 @@ const C = {
   green: "#2F4A3E",
   greenSoft: "#3F6553",
   rust: "#A2402A",
-  gold: "#AD7C24"
+  gold: "#AD7C24",
+  azure: "#2E6E85"
 };
 
 /* ---------- Minimal inline icons (no external icon package needed) ---------- */
@@ -236,6 +237,34 @@ const IconDownload = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/
 const IconCheck = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
   d: "M4 12l6 6L20 6"
 }));
+const IconCalendar = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("rect", {
+  x: "3",
+  y: "4",
+  width: "18",
+  height: "18",
+  rx: "2"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "16",
+  y1: "2",
+  x2: "16",
+  y2: "6"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "8",
+  y1: "2",
+  x2: "8",
+  y2: "6"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "3",
+  y1: "10",
+  x2: "21",
+  y2: "10"
+}));
+const IconChevronLeft = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M15 18l-6-6 6-6"
+}));
+const IconChevronRight = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
+  d: "M9 18l6-6-6-6"
+}));
 const IconAlert = p => /*#__PURE__*/React.createElement(Svg, p, /*#__PURE__*/React.createElement("path", {
   d: "M12 3l10 18H2z"
 }), /*#__PURE__*/React.createElement("line", {
@@ -262,7 +291,7 @@ const CATEGORIES = [{
   genreOptions: ["Rock", "Pop", "Cantautorato", "Jazz", "Classica", "Hip hop", "Elettronica", "Folk", "Metal", "Indie"],
   progressLabel: "Traccia / punto di ascolto",
   statuses: ["Da ascoltare", "In ascolto", "Ascoltato"],
-  accent: C.green
+  accent: C.azure
 }, {
   key: "film",
   label: "Film & Serie",
@@ -317,6 +346,21 @@ const STORAGE_PREFIX = "schedario-entries-";
 const GITHUB_CONFIG_KEY = "schedario-github-config";
 function uid() {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+/* ---------- Calendar helpers ---------- */
+function dateKey(year, monthIndex, day) {
+  return `${year}-${String(monthIndex + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+function getMonthMatrix(year, monthIndex) {
+  const firstOfMonth = new Date(year, monthIndex, 1);
+  const daysInMonth = new Date(year, monthIndex + 1, 0).getDate();
+  const startOffset = (firstOfMonth.getDay() + 6) % 7; // settimana che parte da lunedì
+  const cells = [];
+  for (let i = 0; i < startOffset; i++) cells.push(null);
+  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+  while (cells.length % 7 !== 0) cells.push(null);
+  return cells;
 }
 
 /* ---------- localStorage helpers ---------- */
@@ -382,8 +426,10 @@ function encodedPath(path) {
   return path.split("/").filter(Boolean).map(encodeURIComponent).join("/");
 }
 async function githubGetFile(cfg) {
-  const url = `https://api.github.com/repos/${cfg.repo}/contents/${encodedPath(cfg.path)}?ref=${encodeURIComponent(cfg.branch || "main")}`;
+  const cacheBust = Date.now();
+  const url = `https://api.github.com/repos/${cfg.repo}/contents/${encodedPath(cfg.path)}?ref=${encodeURIComponent(cfg.branch || "main")}&_=${cacheBust}`;
   const res = await fetch(url, {
+    cache: "no-store",
     headers: {
       Authorization: `Bearer ${cfg.token}`,
       Accept: "application/vnd.github+json"
@@ -396,7 +442,7 @@ async function githubGetFile(cfg) {
   }
   return res.json();
 }
-async function githubPushBackup(cfg, dataObj) {
+async function githubPushBackupOnce(cfg, dataObj) {
   const existing = await githubGetFile(cfg);
   const body = {
     message: `Backup Schedario - ${new Date().toLocaleString("it-IT")}`,
@@ -416,9 +462,24 @@ async function githubPushBackup(cfg, dataObj) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.message || `Errore GitHub (${res.status})`);
+    const message = err.message || `Errore GitHub (${res.status})`;
+    const error = new Error(message);
+    error.status = res.status;
+    throw error;
   }
   return res.json();
+}
+async function githubPushBackup(cfg, dataObj) {
+  try {
+    return await githubPushBackupOnce(cfg, dataObj);
+  } catch (e) {
+    // "sha does not match" happens when two backups race each other (es. automatico + manuale
+    // quasi insieme). In quel caso basta riprovare una volta con lo sha aggiornato.
+    const isConflict = e.status === 409 || e.status === 422 || /does not match|sha/i.test(e.message || "");
+    if (!isConflict) throw e;
+    await new Promise(r => setTimeout(r, 600));
+    return await githubPushBackupOnce(cfg, dataObj);
+  }
 }
 async function githubRestoreBackup(cfg) {
   const file = await githubGetFile(cfg);
@@ -1027,6 +1088,7 @@ function SettingsSheet({
   }, "Salva impostazioni"), /*#__PURE__*/React.createElement("button", {
     type: "button",
     onClick: doBackup,
+    disabled: backupStatus.state === "working",
     className: "focus-ring",
     style: {
       display: "flex",
@@ -1039,7 +1101,8 @@ function SettingsSheet({
       color: "#fff",
       background: C.green,
       border: "none",
-      cursor: "pointer"
+      cursor: backupStatus.state === "working" ? "default" : "pointer",
+      opacity: backupStatus.state === "working" ? 0.6 : 1
     }
   }, /*#__PURE__*/React.createElement(IconCloud, {
     size: 15,
@@ -1047,6 +1110,7 @@ function SettingsSheet({
   }), " Esegui backup ora"), /*#__PURE__*/React.createElement("button", {
     type: "button",
     onClick: doRestore,
+    disabled: backupStatus.state === "working",
     className: "focus-ring",
     style: {
       display: "flex",
@@ -1059,7 +1123,8 @@ function SettingsSheet({
       color: "#fff",
       background: C.rust,
       border: "none",
-      cursor: "pointer"
+      cursor: backupStatus.state === "working" ? "default" : "pointer",
+      opacity: backupStatus.state === "working" ? 0.6 : 1
     }
   }, /*#__PURE__*/React.createElement(IconDownload, {
     size: 15,
@@ -1092,6 +1157,337 @@ function SettingsSheet({
   }, "\"Ripristina da GitHub\" sostituisce tutti i dati salvati in questo browser con quelli del file di backup. Usalo se cambi dispositivo o se devi recuperare i dati dopo aver svuotato la cache."))));
 }
 
+/* ---------- Calendar (read-only) ---------- */
+const MONTH_NAMES = ["Gennaio", "Febbraio", "Marzo", "Aprile", "Maggio", "Giugno", "Luglio", "Agosto", "Settembre", "Ottobre", "Novembre", "Dicembre"];
+const WEEKDAY_LABELS = ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"];
+function CalendarSheet({
+  doneByDate,
+  onClose
+}) {
+  const today = new Date();
+  const [viewYear, setViewYear] = useState(today.getFullYear());
+  const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [selectedDate, setSelectedDate] = useState(null);
+  const cells = useMemo(() => getMonthMatrix(viewYear, viewMonth), [viewYear, viewMonth]);
+  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  const goPrev = () => {
+    setSelectedDate(null);
+    if (viewMonth === 0) {
+      setViewMonth(11);
+      setViewYear(y => y - 1);
+    } else setViewMonth(m => m - 1);
+  };
+  const goNext = () => {
+    setSelectedDate(null);
+    if (viewMonth === 11) {
+      setViewMonth(0);
+      setViewYear(y => y + 1);
+    } else setViewMonth(m => m + 1);
+  };
+  const goToday = () => {
+    setViewYear(today.getFullYear());
+    setViewMonth(today.getMonth());
+    setSelectedDate(todayKey);
+  };
+  const selectedEntries = selectedDate ? doneByDate[selectedDate] || [] : [];
+  const selectedLabel = selectedDate ? new Date(selectedDate + "T00:00:00").toLocaleDateString("it-IT", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+  }) : "";
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "fixed",
+      inset: 0,
+      zIndex: 50,
+      display: "flex",
+      justifyContent: "center",
+      background: "rgba(38,34,27,0.5)"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: C.card,
+      borderLeft: `1px solid ${C.line}`,
+      borderRight: `1px solid ${C.line}`,
+      height: "94vh",
+      marginTop: "6vh",
+      borderTopLeftRadius: "12px",
+      borderTopRightRadius: "12px",
+      width: "100%",
+      maxWidth: "560px",
+      overflowY: "auto"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: "8px",
+      padding: "12px 20px",
+      borderBottom: `1px solid ${C.line}`,
+      background: C.card,
+      position: "sticky",
+      top: 0,
+      zIndex: 1
+    }
+  }, /*#__PURE__*/React.createElement("h2", {
+    style: {
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 700,
+      fontSize: "1.15rem",
+      margin: 0
+    }
+  }, "Calendario"), /*#__PURE__*/React.createElement("button", {
+    type: "button",
+    onClick: onClose,
+    className: "focus-ring",
+    style: {
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      padding: "4px"
+    }
+  }, /*#__PURE__*/React.createElement(IconX, {
+    size: 20,
+    color: C.ink
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px 24px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: goPrev,
+    className: "focus-ring",
+    "aria-label": "Mese precedente",
+    style: {
+      background: "none",
+      border: `1px solid ${C.line}`,
+      borderRadius: "6px",
+      padding: "6px 10px",
+      cursor: "pointer",
+      display: "flex"
+    }
+  }, /*#__PURE__*/React.createElement(IconChevronLeft, {
+    size: 16,
+    color: C.ink
+  })), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 600,
+      fontSize: "1.1rem"
+    }
+  }, MONTH_NAMES[viewMonth], " ", viewYear), /*#__PURE__*/React.createElement("button", {
+    onClick: goNext,
+    className: "focus-ring",
+    "aria-label": "Mese successivo",
+    style: {
+      background: "none",
+      border: `1px solid ${C.line}`,
+      borderRadius: "6px",
+      padding: "6px 10px",
+      cursor: "pointer",
+      display: "flex"
+    }
+  }, /*#__PURE__*/React.createElement(IconChevronRight, {
+    size: 16,
+    color: C.ink
+  }))), /*#__PURE__*/React.createElement("button", {
+    onClick: goToday,
+    className: "focus-ring",
+    style: {
+      alignSelf: "center",
+      fontSize: "12px",
+      color: C.inkSoft,
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      textDecoration: "underline"
+    }
+  }, "Vai a oggi"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(7, 1fr)",
+      gap: "4px",
+      fontSize: "11px",
+      color: C.inkSoft,
+      textAlign: "center",
+      fontFamily: "'JetBrains Mono', monospace"
+    }
+  }, WEEKDAY_LABELS.map(d => /*#__PURE__*/React.createElement("div", {
+    key: d
+  }, d))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "repeat(7, 1fr)",
+      gap: "4px"
+    }
+  }, cells.map((day, idx) => {
+    if (day === null) return /*#__PURE__*/React.createElement("div", {
+      key: idx
+    });
+    const key = dateKey(viewYear, viewMonth, day);
+    const dayEntries = doneByDate[key] || [];
+    const uniqueCats = [...new Map(dayEntries.map(e => [e.categoryKey, e.categoryAccent])).entries()];
+    const isSelected = selectedDate === key;
+    const isToday = key === todayKey;
+    return /*#__PURE__*/React.createElement("button", {
+      key: idx,
+      type: "button",
+      onClick: () => dayEntries.length > 0 && setSelectedDate(isSelected ? null : key),
+      className: "focus-ring",
+      style: {
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: "3px",
+        aspectRatio: "1",
+        borderRadius: "6px",
+        border: isSelected ? `2px solid ${C.ink}` : isToday ? `1px solid ${C.ink}` : `1px solid ${C.line}`,
+        background: dayEntries.length > 0 ? C.paper : "transparent",
+        cursor: dayEntries.length > 0 ? "pointer" : "default",
+        padding: "2px"
+      }
+    }, /*#__PURE__*/React.createElement("span", {
+      style: {
+        fontSize: "12px",
+        color: C.ink
+      }
+    }, day), uniqueCats.length > 0 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: "2px"
+      }
+    }, uniqueCats.slice(0, 4).map(([k, color]) => /*#__PURE__*/React.createElement("span", {
+      key: k,
+      style: {
+        width: "5px",
+        height: "5px",
+        borderRadius: "50%",
+        background: color,
+        display: "inline-block"
+      }
+    }))));
+  })), selectedDate ? /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: "6px",
+      paddingTop: "16px",
+      borderTop: `1px solid ${C.line}`
+    }
+  }, /*#__PURE__*/React.createElement("h3", {
+    style: {
+      fontFamily: "'Fraunces', serif",
+      fontWeight: 600,
+      fontSize: "1rem",
+      marginBottom: "10px",
+      textTransform: "capitalize"
+    }
+  }, selectedLabel), selectedEntries.length === 0 ? /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "13px",
+      color: C.inkSoft
+    }
+  }, "Nessuna scheda segnata come completata in questo giorno.") : /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px"
+    }
+  }, selectedEntries.map(e => {
+    const CIcon = e.categoryIcon;
+    return /*#__PURE__*/React.createElement("div", {
+      key: e.id,
+      style: {
+        display: "flex",
+        gap: "10px",
+        alignItems: "flex-start",
+        padding: "10px",
+        borderRadius: "6px",
+        border: `1px solid ${C.line}`,
+        background: C.paper
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: "28px",
+        height: "28px",
+        borderRadius: "6px",
+        background: e.categoryAccent,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement(CIcon, {
+      size: 14,
+      color: "#fff"
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: 600,
+        fontSize: "14px"
+      }
+    }, e.title), e.creator && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "12px",
+        color: C.inkSoft
+      }
+    }, e.creator), /*#__PURE__*/React.createElement("div", {
+      style: {
+        marginTop: "4px"
+      }
+    }, /*#__PURE__*/React.createElement(Stars, {
+      value: e.rating || 0,
+      size: 12
+    }))));
+  }))) : /*#__PURE__*/React.createElement("p", {
+    style: {
+      fontSize: "12px",
+      color: C.inkSoft,
+      textAlign: "center",
+      marginTop: "4px"
+    }
+  }, "Tocca un giorno colorato per vedere cosa hai completato."), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "10px",
+      marginTop: "6px",
+      paddingTop: "14px",
+      borderTop: `1px solid ${C.line}`
+    }
+  }, CATEGORIES.map(c => /*#__PURE__*/React.createElement("div", {
+    key: c.key,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontSize: "11px",
+      color: C.inkSoft
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      width: "8px",
+      height: "8px",
+      borderRadius: "50%",
+      background: c.accent,
+      display: "inline-block"
+    }
+  }), c.label))))));
+}
+
 /* ---------- Main App ---------- */
 function App() {
   const [entries, setEntries] = useState(() => {
@@ -1108,14 +1504,35 @@ function App() {
   const [editingId, setEditingId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
   const [githubConfig, setGithubConfig] = useState(loadGithubConfig());
   const [backupStatus, setBackupStatus] = useState({
     state: "idle",
     message: ""
   });
   const autoBackupTimer = useRef(null);
+  const backupInFlight = useRef(false);
   const cat = CATEGORIES.find(c => c.key === activeTab);
   const Icon = cat.icon;
+  const doneByDate = useMemo(() => {
+    const map = {};
+    CATEGORIES.forEach(c => {
+      const doneStatus = c.statuses[2];
+      (entries[c.key] || []).forEach(it => {
+        if (it.status === doneStatus && it.date) {
+          if (!map[it.date]) map[it.date] = [];
+          map[it.date].push({
+            ...it,
+            categoryKey: c.key,
+            categoryLabel: c.label,
+            categoryAccent: c.accent,
+            categoryIcon: c.icon
+          });
+        }
+      });
+    });
+    return map;
+  }, [entries]);
   const runBackup = useCallback(async cfg => {
     if (!cfg.token || !cfg.repo) {
       setBackupStatus({
@@ -1124,6 +1541,8 @@ function App() {
       });
       return;
     }
+    if (backupInFlight.current) return; // un backup è già in corso, evita chiamate doppie
+    backupInFlight.current = true;
     setBackupStatus({
       state: "working",
       message: "Backup in corso…"
@@ -1150,6 +1569,8 @@ function App() {
         state: "error",
         message: e.message || "Errore durante il backup."
       });
+    } finally {
+      backupInFlight.current = false;
     }
   }, [entries]);
   const runRestore = useCallback(async cfg => {
@@ -1339,6 +1760,21 @@ function App() {
       letterSpacing: "0.15em"
     }
   }, totalAll, " schede archiviate"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setCalendarOpen(true),
+    className: "focus-ring",
+    "aria-label": "Calendario",
+    style: {
+      background: "none",
+      border: `1px solid ${C.line}`,
+      borderRadius: "6px",
+      padding: "6px",
+      cursor: "pointer",
+      display: "flex"
+    }
+  }, /*#__PURE__*/React.createElement(IconCalendar, {
+    size: 16,
+    color: C.inkSoft
+  })), /*#__PURE__*/React.createElement("button", {
     onClick: () => setSettingsOpen(true),
     className: "focus-ring",
     "aria-label": "Impostazioni backup",
@@ -1705,6 +2141,9 @@ function App() {
     isEditing: !!editingId,
     onCancel: closeForm,
     onSubmit: submitForm
+  }), calendarOpen && /*#__PURE__*/React.createElement(CalendarSheet, {
+    doneByDate: doneByDate,
+    onClose: () => setCalendarOpen(false)
   }), settingsOpen && /*#__PURE__*/React.createElement(SettingsSheet, {
     config: githubConfig,
     backupStatus: backupStatus,
