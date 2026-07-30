@@ -1,5 +1,5 @@
 {
-  "exportedAt": "2026-07-30T23:42:11.204Z",
+  "exportedAt": "2026-07-30T23:43:09.406Z",
   "entries": {
     "musica": [],
     "film": [
@@ -20,6 +20,22 @@
       }
     ],
     "fumetti": [],
-    "libri": []
+    "libri": [
+      {
+        "title": "Macabro Quiz",
+        "creator": "Agatha Christie",
+        "subtype": "Romanzo",
+        "genre": "Giallo",
+        "year": "",
+        "status": "In corso",
+        "rating": 0,
+        "progress": "62",
+        "date": "2026-07-30",
+        "notes": "",
+        "image": "",
+        "id": "nea67hh7ms85riw1",
+        "createdAt": 1785454927201
+      }
+    ]
   }
 }
