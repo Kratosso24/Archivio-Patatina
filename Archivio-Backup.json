@@ -1,8 +1,23 @@
 {
-  "exportedAt": "2026-07-31T15:11:24.594Z",
+  "exportedAt": "2026-07-31T15:11:33.665Z",
   "entries": {
     "musica": [],
     "film": [
+      {
+        "title": "Odissea",
+        "creator": "Christopher Nolan",
+        "subtype": "Film",
+        "genre": "Epico",
+        "year": "2026",
+        "status": "Da vedere",
+        "rating": 4,
+        "progress": "",
+        "date": "2026-07-31",
+        "notes": "",
+        "image": "",
+        "id": "m43760onms92yih8",
+        "createdAt": 1785510680588
+      },
       {
         "title": "Spiderman: Brand New Day",
         "creator": "Destin Daniel Cretton",
