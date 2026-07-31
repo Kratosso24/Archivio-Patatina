@@ -291,7 +291,10 @@ const CATEGORIES = [{
   genreOptions: ["Rock", "Pop", "Cantautorato", "Jazz", "Classica", "Hip hop", "Elettronica", "Folk", "Metal", "Indie"],
   progressLabel: "Traccia / punto di ascolto",
   statuses: ["Da ascoltare", "In ascolto", "Ascoltato"],
-  accent: C.azure
+  accent: C.azure,
+  quantityLabel: "Durata (minuti)",
+  quantityType: "time",
+  quantityPlaceholder: "es. 45"
 }, {
   key: "film",
   label: "Film & Serie",
@@ -303,7 +306,10 @@ const CATEGORIES = [{
   genreOptions: ["Drammatico", "Commedia", "Azione", "Thriller", "Horror", "Fantascienza", "Fantasy", "Animazione", "Noir", "Storico"],
   progressLabel: "Stagione / episodio",
   statuses: ["Da vedere", "In corso", "Visto"],
-  accent: C.rust
+  accent: C.rust,
+  quantityLabel: "Durata (minuti)",
+  quantityType: "time",
+  quantityPlaceholder: "es. 120"
 }, {
   key: "fumetti",
   label: "Fumetti",
@@ -315,7 +321,10 @@ const CATEGORIES = [{
   genreOptions: ["Supereroi", "Avventura", "Fantasy", "Fantascienza", "Slice of life", "Horror", "Commedia", "Storico", "Autobiografico"],
   progressLabel: "Numero / volume",
   statuses: ["Da leggere", "In corso", "Letto"],
-  accent: C.gold
+  accent: C.gold,
+  quantityLabel: "Pagine",
+  quantityType: "pages",
+  quantityPlaceholder: "es. 22"
 }, {
   key: "libri",
   label: "Libri",
@@ -327,7 +336,10 @@ const CATEGORIES = [{
   genreOptions: ["Narrativa", "Saggistica", "Filosofia", "Storia", "Fantasy", "Fantascienza", "Giallo", "Biografia", "Poesia"],
   progressLabel: "Pagina",
   statuses: ["Da leggere", "In corso", "Letto"],
-  accent: C.greenSoft
+  accent: C.greenSoft,
+  quantityLabel: "Pagine",
+  quantityType: "pages",
+  quantityPlaceholder: "es. 320"
 }];
 const emptyForm = {
   title: "",
@@ -340,7 +352,8 @@ const emptyForm = {
   progress: "",
   date: "",
   notes: "",
-  image: ""
+  image: "",
+  duration: ""
 };
 const STORAGE_PREFIX = "schedario-entries-";
 const GITHUB_CONFIG_KEY = "schedario-github-config";
@@ -361,6 +374,13 @@ function getMonthMatrix(year, monthIndex) {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
   return cells;
+}
+function formatMinutes(total) {
+  if (!total) return "0 min";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h > 0) return m > 0 ? `${h} h ${m} min` : `${h} h`;
+  return `${m} min`;
 }
 
 /* ---------- localStorage helpers ---------- */
@@ -831,6 +851,20 @@ function EntryFormSheet({
     className: "focus-ring",
     style: inputStyle
   }))), /*#__PURE__*/React.createElement(Field, {
+    label: cat.quantityLabel
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    min: "0",
+    inputMode: "numeric",
+    value: form.duration,
+    onChange: e => setForm(f => ({
+      ...f,
+      duration: e.target.value
+    })),
+    placeholder: cat.quantityPlaceholder,
+    className: "focus-ring",
+    style: inputStyle
+  })), /*#__PURE__*/React.createElement(Field, {
     label: "Voto"
   }, /*#__PURE__*/React.createElement(Stars, {
     value: form.rating,
@@ -1196,6 +1230,43 @@ function CalendarSheet({
     month: "long",
     year: "numeric"
   }) : "";
+  const totals = useMemo(() => {
+    const monthPrefix = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
+    const yearPrefix = `${viewYear}`;
+    const monthByCat = {};
+    const yearByCat = {};
+    CATEGORIES.forEach(c => {
+      monthByCat[c.key] = 0;
+      yearByCat[c.key] = 0;
+    });
+    Object.keys(doneByDate).forEach(dateStr => {
+      doneByDate[dateStr].forEach(e => {
+        const amount = Number(e.duration) || 0;
+        if (!amount) return;
+        if (dateStr.startsWith(monthPrefix)) monthByCat[e.categoryKey] += amount;
+        if (dateStr.startsWith(yearPrefix)) yearByCat[e.categoryKey] += amount;
+      });
+    });
+    return {
+      monthByCat,
+      yearByCat
+    };
+  }, [doneByDate, viewYear, viewMonth]);
+  const dayByCat = useMemo(() => {
+    const acc = {};
+    CATEGORIES.forEach(c => {
+      acc[c.key] = 0;
+    });
+    selectedEntries.forEach(e => {
+      const amount = Number(e.duration) || 0;
+      acc[e.categoryKey] += amount;
+    });
+    return acc;
+  }, [selectedEntries]);
+  const formatCatAmount = (catKey, amount) => {
+    const c = CATEGORIES.find(x => x.key === catKey);
+    return c.quantityType === "pages" ? `${amount} pagine` : formatMinutes(amount);
+  };
   return /*#__PURE__*/React.createElement("div", {
     style: {
       position: "fixed",
@@ -1314,6 +1385,52 @@ function CalendarSheet({
     }
   }, "Vai a oggi"), /*#__PURE__*/React.createElement("div", {
     style: {
+      fontSize: "12px",
+      color: C.inkSoft,
+      display: "flex",
+      flexDirection: "column",
+      gap: "10px",
+      padding: "10px 12px",
+      borderRadius: "6px",
+      background: C.paper,
+      border: `1px solid ${C.line}`
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: C.ink,
+      marginBottom: "2px"
+    }
+  }, "Questo mese"), CATEGORIES.filter(c => totals.monthByCat[c.key] > 0).length === 0 ? /*#__PURE__*/React.createElement("div", null, "niente ancora") : CATEGORIES.map(c => totals.monthByCat[c.key] > 0 && /*#__PURE__*/React.createElement("div", {
+    key: c.key,
+    style: {
+      display: "flex",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("span", null, c.label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "'JetBrains Mono', monospace",
+      color: c.accent
+    }
+  }, formatCatAmount(c.key, totals.monthByCat[c.key]))))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: 700,
+      color: C.ink,
+      marginBottom: "2px"
+    }
+  }, "Quest'anno"), CATEGORIES.filter(c => totals.yearByCat[c.key] > 0).length === 0 ? /*#__PURE__*/React.createElement("div", null, "niente ancora") : CATEGORIES.map(c => totals.yearByCat[c.key] > 0 && /*#__PURE__*/React.createElement("div", {
+    key: c.key,
+    style: {
+      display: "flex",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("span", null, c.label), /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontFamily: "'JetBrains Mono', monospace",
+      color: c.accent
+    }
+  }, formatCatAmount(c.key, totals.yearByCat[c.key])))))), /*#__PURE__*/React.createElement("div", {
+    style: {
       display: "grid",
       gridTemplateColumns: "repeat(7, 1fr)",
       gap: "4px",
@@ -1388,10 +1505,24 @@ function CalendarSheet({
       fontFamily: "'Fraunces', serif",
       fontWeight: 600,
       fontSize: "1rem",
-      marginBottom: "10px",
+      marginBottom: "4px",
       textTransform: "capitalize"
     }
-  }, selectedLabel), selectedEntries.length === 0 ? /*#__PURE__*/React.createElement("p", {
+  }, selectedLabel), CATEGORIES.some(c => dayByCat[c.key] > 0) && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "10px",
+      fontSize: "12px",
+      marginBottom: "10px"
+    }
+  }, CATEGORIES.map(c => dayByCat[c.key] > 0 && /*#__PURE__*/React.createElement("span", {
+    key: c.key,
+    style: {
+      color: c.accent,
+      fontFamily: "'JetBrains Mono', monospace"
+    }
+  }, c.label, ": ", formatCatAmount(c.key, dayByCat[c.key])))), selectedEntries.length === 0 ? /*#__PURE__*/React.createElement("p", {
     style: {
       fontSize: "13px",
       color: C.inkSoft
@@ -1526,7 +1657,8 @@ function App() {
             categoryKey: c.key,
             categoryLabel: c.label,
             categoryAccent: c.accent,
-            categoryIcon: c.icon
+            categoryIcon: c.icon,
+            quantityType: c.quantityType
           });
         }
       });
@@ -2118,14 +2250,14 @@ function App() {
       color: C.inkSoft,
       margin: 0
     }
-  }, cat.progressLabel, ": ", it.progress), it.date && /*#__PURE__*/React.createElement("p", {
+  }, cat.progressLabel, ": ", it.progress), (it.date || it.duration) && /*#__PURE__*/React.createElement("p", {
     style: {
       fontSize: "12px",
       fontFamily: "'JetBrains Mono', monospace",
       color: C.inkSoft,
       margin: 0
     }
-  }, it.date), it.notes && /*#__PURE__*/React.createElement("p", {
+  }, [it.date, it.duration ? `${it.duration} ${cat.quantityType === "pages" ? "pag" : "min"}` : null].filter(Boolean).join(" · ")), it.notes && /*#__PURE__*/React.createElement("p", {
     style: {
       fontSize: "14px",
       marginTop: "4px",
