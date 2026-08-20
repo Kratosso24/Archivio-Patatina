@@ -1,8 +1,24 @@
 {
-  "exportedAt": "2026-08-07T20:02:32.981Z",
+  "exportedAt": "2026-08-20T20:19:45.216Z",
   "entries": {
     "musica": [],
     "film": [
+      {
+        "title": "Jeanne du Barry - La favorita del re",
+        "creator": "Maïwenn",
+        "subtype": "Film",
+        "genre": "Drammatico, Romantico",
+        "year": "2023",
+        "status": "Visto",
+        "rating": 4,
+        "progress": "",
+        "date": "2026-08-07",
+        "notes": "",
+        "image": "",
+        "duration": "116",
+        "id": "0odv3an8msjdfvu9",
+        "createdAt": 1786132948977
+      },
       {
         "title": "Odissea",
         "creator": "Christopher Nolan",
