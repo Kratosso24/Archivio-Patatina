@@ -1,8 +1,24 @@
 {
-  "exportedAt": "2026-08-20T20:19:45.216Z",
+  "exportedAt": "2026-08-20T20:20:03.691Z",
   "entries": {
     "musica": [],
     "film": [
+      {
+        "title": "Pecore sotto copertura",
+        "creator": "Kyle Balda",
+        "subtype": "Film",
+        "genre": "Giallo",
+        "year": "2026",
+        "status": "Da vedere",
+        "rating": 5,
+        "progress": "",
+        "date": "2026-08-20",
+        "notes": "",
+        "image": "",
+        "duration": "110",
+        "id": "hfdyord8mt1ys2ze",
+        "createdAt": 1787257181210
+      },
       {
         "title": "Jeanne du Barry - La favorita del re",
         "creator": "Maïwenn",
